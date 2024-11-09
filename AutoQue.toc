@@ -1,0 +1,12 @@
+## Interface: 100105
+## Title: AutoQue
+## Notes: Automatically accepts LFG role checks with inactivity auto-disable feature.
+## Author: YourName
+## Version: 1.0
+## SavedVariables: AutoQueDB
+
+## OptionalDeps: LibDataBroker-1.1, LibDBIcon-1.0
+
+embeds.xml
+LibDBIcon-1.0\lib.xml
+AutoQue.lua
