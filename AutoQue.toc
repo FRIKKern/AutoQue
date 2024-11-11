@@ -1,6 +1,6 @@
 ## Interface: 100105
 ## Title: AutoQue
-## Notes: Automatically accepts LFG role checks with inactivity auto-disable feature.
+## Notes: Automatically accepts LFG role checks when toggled on. Turns off after 10/customizable minutes of inactivity.
 ## Author: Frikk Jarl
 ## Version: v1.0
 ## SavedVariables: AutoQueDB

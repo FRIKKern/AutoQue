@@ -17,6 +17,7 @@ local defaultSettings = {
     active = true,
     inactivityDuration = 300, -- Default to 5 minutes
     autoDisable = true,
+    toggleOnAccept = true, -- Updated option to toggle on manual accept
     lastAcceptedTime = GetTime(),
     minimap = { hide = false }, -- Minimap button settings
 }
@@ -59,7 +60,7 @@ function AutoQue:HandleRoleCheck()
         AutoQueDB.lastAcceptedTime = GetTime()
     else
         -- If the addon is inactive, set up a hook to detect manual acceptance
-        if not self.acceptButtonHooked then
+        if AutoQueDB.toggleOnAccept and not self.acceptButtonHooked then
             -- Determine the correct accept button
             local acceptButton = self:GetRoleCheckAcceptButton()
             if acceptButton then
@@ -69,11 +70,9 @@ function AutoQue:HandleRoleCheck()
                     if self.originalAcceptButtonOnClick then
                         self.originalAcceptButtonOnClick(...)
                     end
-                    -- Re-enable the addon
-                    AutoQueDB.active = true
-                    AutoQueDB.lastAcceptedTime = GetTime()
-                    print("|cffb048f8AutoQue:|r Re-enabled due to role check acceptance.")
-                    AutoQue:UpdateIconAndTooltip()
+                    -- Toggle the addon's active state
+                    AutoQue:ToggleActive()
+                    print("|cffb048f8AutoQue:|r Toggled auto-accept on due to role check acceptance.")
                     -- Remove the hook after acceptance
                     AutoQue:RemoveAcceptButtonHook()
                 end)
@@ -295,11 +294,22 @@ function AutoQue:CreateOptionsPanel()
         durationSliderValue:SetText(string.format("%d minutes", value / 60))
     end)
 
+    -- Checkbox for toggle on accept feature
+    local toggleCheckbox = CreateFrame("CheckButton", "AutoQueToggleCheckbox", panel, "InterfaceOptionsCheckButtonTemplate")
+    toggleCheckbox:SetPoint("TOPLEFT", durationSlider, "BOTTOMLEFT", -10, -30)
+    toggleCheckbox.text = _G[toggleCheckbox:GetName() .. "Text"]
+    toggleCheckbox.text:SetText("Toggle auto-accept when accepting role check")
+    toggleCheckbox:SetChecked(AutoQueDB.toggleOnAccept)
+    toggleCheckbox:SetScript("OnClick", function(self)
+        AutoQueDB.toggleOnAccept = self:GetChecked()
+    end)
+
     -- Refresh function to update the panel
     panel.refresh = function()
         autoDisableCheckbox:SetChecked(AutoQueDB.autoDisable)
         durationSlider:SetValue(AutoQueDB.inactivityDuration)
         durationSliderValue:SetText(string.format("%d minutes", AutoQueDB.inactivityDuration / 60))
+        toggleCheckbox:SetChecked(AutoQueDB.toggleOnAccept)
     end
 
     panel:SetScript("OnShow", panel.refresh)
