@@ -25,6 +25,7 @@ local defaultSettings = {
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("LFG_ROLE_CHECK_SHOW")
+frame:RegisterEvent("LFG_ROLE_CHECK_HIDE") -- To handle role check end
 
 -- Event handler function
 frame:SetScript("OnEvent", function(self, event, ...)
@@ -44,6 +45,8 @@ frame:SetScript("OnEvent", function(self, event, ...)
         end
     elseif event == "LFG_ROLE_CHECK_SHOW" then
         AutoQue:HandleRoleCheck()
+    elseif event == "LFG_ROLE_CHECK_HIDE" then
+        AutoQue:RemoveAcceptButtonHook()
     end
 end)
 
@@ -54,19 +57,61 @@ function AutoQue:HandleRoleCheck()
         print("|cffb048f8AutoQue:|r Role check accepted.")
         -- Update the last accepted time
         AutoQueDB.lastAcceptedTime = GetTime()
+    else
+        -- If the addon is inactive, set up a hook to detect manual acceptance
+        if not self.acceptButtonHooked then
+            -- Determine the correct accept button
+            local acceptButton = self:GetRoleCheckAcceptButton()
+            if acceptButton then
+                self.originalAcceptButtonOnClick = acceptButton:GetScript("OnClick")
+                acceptButton:SetScript("OnClick", function(...)
+                    -- Call the original function
+                    if self.originalAcceptButtonOnClick then
+                        self.originalAcceptButtonOnClick(...)
+                    end
+                    -- Re-enable the addon
+                    AutoQueDB.active = true
+                    AutoQueDB.lastAcceptedTime = GetTime()
+                    print("|cffb048f8AutoQue:|r Re-enabled due to role check acceptance.")
+                    AutoQue:UpdateIconAndTooltip()
+                    -- Remove the hook after acceptance
+                    AutoQue:RemoveAcceptButtonHook()
+                end)
+                self.acceptButtonHooked = true
+            else
+                print("|cffb048f8AutoQue:|r Error: Accept button not found.")
+            end
+        end
     end
 end
 
--- Function to toggle the active state
-function AutoQue:ToggleActive()
-    AutoQueDB.active = not AutoQueDB.active
-    if AutoQueDB.active then
-        AutoQueDB.lastAcceptedTime = GetTime() -- Reset the timer when re-enabled
-        print("|cffb048f8AutoQue:|r Enabled.")
+-- Function to determine the correct accept button based on the role check popup
+function AutoQue:GetRoleCheckAcceptButton()
+    -- LFDRoleCheckPopup is used for Dungeon Finder
+    if LFDRoleCheckPopup and LFDRoleCheckPopupAcceptButton and LFDRoleCheckPopup:IsShown() then
+        return LFDRoleCheckPopupAcceptButton
+    -- LFGInvitePopup is used for other LFG types
+    elseif LFGInvitePopup and LFGInvitePopupAcceptButton and LFGInvitePopup:IsShown() then
+        return LFGInvitePopupAcceptButton
     else
-        print("|cffb048f8AutoQue:|r Disabled.")
+        return nil
     end
+end
 
+-- Function to remove the accept button hook
+function AutoQue:RemoveAcceptButtonHook()
+    if self.acceptButtonHooked then
+        local acceptButton = self:GetRoleCheckAcceptButton()
+        if acceptButton and self.originalAcceptButtonOnClick then
+            acceptButton:SetScript("OnClick", self.originalAcceptButtonOnClick)
+        end
+        self.acceptButtonHooked = false
+        self.originalAcceptButtonOnClick = nil
+    end
+end
+
+-- Function to update the minimap icon and tooltip
+function AutoQue:UpdateIconAndTooltip()
     -- Update the minimap icon and data object icon
     local iconTexture = AutoQueDB.active and "Interface/COMMON/Indicator-Green.png" or "Interface/COMMON/Indicator-Red.png"
     if LibDBIcon and LibDBIcon:IsRegistered("AutoQue") then
@@ -83,27 +128,29 @@ function AutoQue:ToggleActive()
     end
 end
 
+-- Function to toggle the active state
+function AutoQue:ToggleActive()
+    AutoQueDB.active = not AutoQueDB.active
+    if AutoQueDB.active then
+        AutoQueDB.lastAcceptedTime = GetTime() -- Reset the timer when re-enabled
+        print("|cffb048f8AutoQue:|r Enabled.")
+    else
+        print("|cffb048f8AutoQue:|r Disabled.")
+    end
+
+    -- Update the icon and tooltip
+    AutoQue:UpdateIconAndTooltip()
+end
+
 -- Function to check for inactivity and auto-disable if necessary
 function AutoQue:CheckInactivity()
     if AutoQueDB.active and AutoQueDB.autoDisable then
         local currentTime = GetTime()
         if (currentTime - AutoQueDB.lastAcceptedTime) >= AutoQueDB.inactivityDuration then
             AutoQueDB.active = false
-            -- Update the minimap icon and data object icon
-            local iconTexture = "Interface/COMMON/Indicator-Red.png"
-            if LibDBIcon and LibDBIcon:IsRegistered("AutoQue") then
-                local button = LibDBIcon:GetMinimapButton("AutoQue")
-                button.icon:SetTexture(iconTexture)
-            end
-            if AutoQueLDB then
-                AutoQueLDB.icon = iconTexture
-            end
             print("|cffb048f8AutoQue:|r Automatically disabled due to inactivity.")
-
-            -- Refresh the tooltip if it's being shown
-            if self.minimapButton and GameTooltip:IsOwned(self.minimapButton) then
-                AutoQue:UpdateTooltip()
-            end
+            -- Update the icon and tooltip
+            AutoQue:UpdateIconAndTooltip()
         end
     end
 end
@@ -193,6 +240,10 @@ function AutoQue:Initialize()
     -- Start the inactivity check timer
     self.inactivityTicker = C_Timer.NewTicker(1, function() AutoQue:CheckInactivity() end)
 
+    -- Ensure the accept button is unhooked on initialization
+    self.acceptButtonHooked = false
+    self.originalAcceptButtonOnClick = nil
+
     -- Create the options panel
     AutoQue:CreateOptionsPanel()
 end
@@ -209,7 +260,6 @@ function AutoQue:CreateOptionsPanel()
     -- Checkbox for auto-disable feature
     local autoDisableCheckbox = CreateFrame("CheckButton", "AutoQueAutoDisableCheckbox", panel, "InterfaceOptionsCheckButtonTemplate")
     autoDisableCheckbox:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -10)
-    -- Access the checkbox text correctly
     autoDisableCheckbox.text = _G[autoDisableCheckbox:GetName() .. "Text"]
     autoDisableCheckbox.text:SetText("Enable auto-disable after inactivity")
     autoDisableCheckbox:SetChecked(AutoQueDB.autoDisable)

@@ -1,0 +1,64 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers the workflow when a tag starting with 'v' is pushed
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Node.js (required for zip creation)
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      # Step 3: Prepare Release Directory
+      - name: Prepare Release Directory
+        run: |
+          mkdir AutoQue
+          cp AutoQue.lua AutoQue/
+          cp AutoQue.toc AutoQue/
+          cp embeds.xml AutoQue/
+          cp README.md AutoQue/
+          cp -r CallbackHandler-1.0 AutoQue/
+          cp -r LibDataBroker-1.1 AutoQue/
+          cp -r LibDBIcon-1.0 AutoQue/
+          cp -r LibStub AutoQue/
+
+      # Step 4: Zip Release Files
+      - name: Zip Release Files
+        run: |
+          cd AutoQue
+          zip -r ../AutoQue.zip .
+          cd ..
+
+      # Step 5: Create GitHub Release
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      # Step 6: Upload Release Asset
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./AutoQue.zip
+          asset_name: AutoQue.zip
+          asset_content_type: application/zip
