@@ -23,21 +23,23 @@ jobs:
       # Step 3: Prepare Release Directory
       - name: Prepare Release Directory
         run: |
-          # Create the top-level folder based on the tag name
-          mkdir -p "${{ github.ref_name }}/AutoQue"
-          cp AutoQue.lua "${{ github.ref_name }}/AutoQue/"
-          cp AutoQue.toc "${{ github.ref_name }}/AutoQue/"
-          cp embeds.xml "${{ github.ref_name }}/AutoQue/"
-          cp README.md "${{ github.ref_name }}/AutoQue/"
-          cp -r CallbackHandler-1.0 "${{ github.ref_name }}/AutoQue/"
-          cp -r LibDataBroker-1.1 "${{ github.ref_name }}/AutoQue/"
-          cp -r LibDBIcon-1.0 "${{ github.ref_name }}/AutoQue/"
-          cp -r LibStub "${{ github.ref_name }}/AutoQue/"
+          # Ensure all files are placed inside the 'AutoQue' directory
+          mkdir AutoQue
+          cp AutoQue.lua AutoQue/
+          cp AutoQue.toc AutoQue/
+          cp embeds.xml AutoQue/
+          cp README.md AutoQue/
+          cp -r CallbackHandler-1.0 AutoQue/
+          cp -r LibDataBroker-1.1 AutoQue/
+          cp -r LibDBIcon-1.0 AutoQue/
+          cp -r LibStub AutoQue/
 
       # Step 4: Zip Release Files
       - name: Zip Release Files
         run: |
-          zip -r "${{ github.ref_name }}.zip" "${{ github.ref_name }}/"
+          cd AutoQue
+          zip -r ../AutoQue.zip .  # Zip the 'AutoQue' directory to ensure the structure is maintained
+          cd ..
 
       # Step 5: Create GitHub Release
       - name: Create GitHub Release
@@ -58,6 +60,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: "./${{ github.ref_name }}.zip"
-          asset_name: "${{ github.ref_name }}.zip"
+          asset_path: ./AutoQue.zip
+          asset_name: AutoQue.zip
           asset_content_type: application/zip
