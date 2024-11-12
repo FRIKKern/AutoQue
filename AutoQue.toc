@@ -2,7 +2,7 @@
 ## Title: AutoQue
 ## Notes: Automatically accepts LFG role checks when toggled on.
 ## Author: Frikk Jarl
-## Version: v1.1
+## Version: v1.2
 ## SavedVariables: AutoQueDB
 ## IconTexture: Interface\AddOns\AutoQue\AutoQue-32.blp
 
