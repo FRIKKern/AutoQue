@@ -23,6 +23,7 @@ jobs:
       # Step 3: Prepare Release Directory
       - name: Prepare Release Directory
         run: |
+          # Ensure all files are placed inside the 'AutoQue' directory
           mkdir AutoQue
           cp AutoQue.lua AutoQue/
           cp AutoQue.toc AutoQue/
@@ -37,7 +38,7 @@ jobs:
       - name: Zip Release Files
         run: |
           cd AutoQue
-          zip -r ../AutoQue.zip .
+          zip -r ../AutoQue.zip .  # Zip the 'AutoQue' directory to ensure the structure is maintained
           cd ..
 
       # Step 5: Create GitHub Release
