@@ -14,13 +14,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Set up Node.js (required for zip creation)
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-
-      # Step 3: Prepare Release Directory
+      # Step 2: Prepare Release Directory
       - name: Prepare Release Directory
         run: |
           # Ensure all files are placed inside the 'AutoQue' directory
@@ -34,14 +28,12 @@ jobs:
           cp -r LibDBIcon-1.0 AutoQue/
           cp -r LibStub AutoQue/
 
-      # Step 4: Zip Release Files
+      # Step 3: Zip Release Files
       - name: Zip Release Files
         run: |
-          cd AutoQue
-          zip -r ../AutoQue.zip .  # Zip the 'AutoQue' directory to ensure the structure is maintained
-          cd ..
+          zip -r AutoQue.zip AutoQue  # Zip the 'AutoQue' directory to include it in the archive
 
-      # Step 5: Create GitHub Release
+      # Step 4: Create GitHub Release
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -53,7 +45,7 @@ jobs:
           draft: false
           prerelease: false
 
-      # Step 6: Upload Release Asset
+      # Step 5: Upload Release Asset
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
