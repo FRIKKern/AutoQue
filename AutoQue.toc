@@ -4,6 +4,7 @@
 ## Author: Frikk Jarl
 ## Version: v1.1
 ## SavedVariables: AutoQueDB
+## IconTexture: Interface\AddOns\AutoQue\AutoQue-32.blp
 
 ## OptionalDeps: LibDataBroker-1.1, LibDBIcon-1.0
 
