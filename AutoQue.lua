@@ -1,5 +1,6 @@
 -- AutoQue Addon
 -- Automatically accepts LFG role checks with inactivity auto-disable feature
+-- Now includes a requeue prompt after leaving an arena
 
 -- Initialize the addon namespace
 local addonName, addonTable = ...
@@ -19,6 +20,7 @@ local defaultSettings = {
     autoDisable = true,
     toggleOnAccept = true, -- Updated option to toggle on manual accept
     lastAcceptedTime = GetTime(),
+    lastQueuedActivity = {},
     minimap = { hide = false }, -- Minimap button settings
 }
 
@@ -27,6 +29,8 @@ local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("LFG_ROLE_CHECK_SHOW")
 frame:RegisterEvent("LFG_ROLE_CHECK_HIDE") -- To handle role check end
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:RegisterEvent("UPDATE_BATTLEFIELD_STATUS") -- To detect PvP queue updates
 
 -- Event handler function
 frame:SetScript("OnEvent", function(self, event, ...)
@@ -48,6 +52,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
         AutoQue:HandleRoleCheck()
     elseif event == "LFG_ROLE_CHECK_HIDE" then
         AutoQue:RemoveAcceptButtonHook()
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        AutoQue:HandlePlayerEnteringWorld()
+    elseif event == "UPDATE_BATTLEFIELD_STATUS" then
+        AutoQue:HandleBattlefieldStatusUpdate()
     end
 end)
 
@@ -64,11 +72,14 @@ function AutoQue:HandleRoleCheck()
             -- Determine the correct accept button
             local acceptButton = self:GetRoleCheckAcceptButton()
             if acceptButton then
-                self.originalAcceptButtonOnClick = acceptButton:GetScript("OnClick")
+                -- Store the original OnClick function directly in the button
+                if not acceptButton.originalOnClick then
+                    acceptButton.originalOnClick = acceptButton:GetScript("OnClick")
+                end
                 acceptButton:SetScript("OnClick", function(...)
                     -- Call the original function
-                    if self.originalAcceptButtonOnClick then
-                        self.originalAcceptButtonOnClick(...)
+                    if acceptButton.originalOnClick then
+                        acceptButton.originalOnClick(...)
                     end
                     -- Toggle the addon's active state
                     AutoQue:ToggleActive()
@@ -101,11 +112,11 @@ end
 function AutoQue:RemoveAcceptButtonHook()
     if self.acceptButtonHooked then
         local acceptButton = self:GetRoleCheckAcceptButton()
-        if acceptButton and self.originalAcceptButtonOnClick then
-            acceptButton:SetScript("OnClick", self.originalAcceptButtonOnClick)
+        if acceptButton and acceptButton.originalOnClick then
+            acceptButton:SetScript("OnClick", acceptButton.originalOnClick)
+            acceptButton.originalOnClick = nil
         end
         self.acceptButtonHooked = false
-        self.originalAcceptButtonOnClick = nil
     end
 end
 
@@ -241,7 +252,6 @@ function AutoQue:Initialize()
 
     -- Ensure the accept button is unhooked on initialization
     self.acceptButtonHooked = false
-    self.originalAcceptButtonOnClick = nil
 
     -- Create the options panel
     AutoQue:CreateOptionsPanel()
@@ -339,5 +349,141 @@ function AutoQue:OpenOptionsPanel()
         InterfaceOptionsFrame_OpenToCategory(self.optionsPanel)
     else
         print("|cffb048f8AutoQue:|r Unable to open options panel.")
+    end
+end
+
+-- Function to handle battlefield status updates (PvP queue updates)
+function AutoQue:HandleBattlefieldStatusUpdate()
+    for i = 1, GetMaxBattlefieldID() do
+        local status, mapName, instanceID, bracketMin, bracketMax, teamSize, registeredMatch, suspendedQueue, queueType = GetBattlefieldStatus(i)
+        if status == "queued" then
+            -- Record the last queued activity
+            if queueType == "ARENA" then
+                AutoQueDB.lastQueuedActivity = {
+                    type = "arena",
+                    teamSize = teamSize,
+                    isSkirmish = not registeredMatch,
+                }
+            elseif queueType == "BATTLEGROUND" then
+                AutoQueDB.lastQueuedActivity = {
+                    type = "battleground",
+                    mapName = mapName,
+                }
+            end
+        end
+    end
+end
+
+-- Function to handle player entering world (to detect entering/leaving arenas)
+function AutoQue:HandlePlayerEnteringWorld()
+    local inInstance, instanceType = IsInInstance()
+    if not inInstance and self.wasInArena then
+        -- Player has just left an arena
+        self.wasInArena = false
+        AutoQue:ShowRequeueFrame()
+    elseif inInstance and instanceType == "arena" then
+        self.wasInArena = true
+        -- Record the last queued activity as an arena
+        AutoQueDB.lastQueuedActivity = {
+            type = "arena",
+        }
+    end
+end
+
+-- Function to show the requeue frame
+function AutoQue:ShowRequeueFrame()
+    if GetNumGroupMembers() == 0 or UnitIsGroupLeader("player") then
+        -- Show the frame
+        self:CreateRequeueFrame()
+    end
+end
+
+-- Function to create the requeue frame
+function AutoQue:CreateRequeueFrame()
+    if self.requeueFrame then
+        self.requeueFrame:Show()
+        return
+    end
+
+    local frame = CreateFrame("Frame", "AutoQueRequeueFrame", UIParent, "BasicFrameTemplateWithInset")
+    frame:SetSize(300, 120)
+    frame:SetPoint("CENTER")
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+
+    frame.title = frame:CreateFontString(nil, "OVERLAY")
+    frame.title:SetFontObject("GameFontHighlight")
+    frame.title:SetPoint("TOP", frame.TitleBg, "TOP", 0, -5)
+    frame.title:SetText("AutoQue")
+
+    frame.message = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.message:SetPoint("CENTER", frame, "CENTER", 0, 20)
+    local activityName = "Unknown Activity"
+    if AutoQueDB.lastQueuedActivity then
+        if AutoQueDB.lastQueuedActivity.type == "arena" then
+            if AutoQueDB.lastQueuedActivity.isSkirmish then
+                activityName = AutoQueDB.lastQueuedActivity.teamSize .. "v" .. AutoQueDB.lastQueuedActivity.teamSize .. " Skirmish"
+            elseif AutoQueDB.lastQueuedActivity.teamSize then
+                activityName = AutoQueDB.lastQueuedActivity.teamSize .. "v" .. AutoQueDB.lastQueuedActivity.teamSize .. " Rated Arena"
+            else
+                activityName = "Arena"
+            end
+        elseif AutoQueDB.lastQueuedActivity.type == "battleground" then
+            activityName = "Battleground: " .. (AutoQueDB.lastQueuedActivity.mapName or "Unknown")
+        end
+    end
+    frame.message:SetText("Queue up again for " .. activityName .. "?")
+
+    frame.queueButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+    frame.queueButton:SetPoint("BOTTOM", frame, "BOTTOM", 0, 10)
+    frame.queueButton:SetSize(140, 25)
+    frame.queueButton:SetText("Queue Up Again")
+    frame.queueButton:SetNormalFontObject("GameFontNormal")
+    frame.queueButton:SetHighlightFontObject("GameFontHighlight")
+    frame.queueButton:SetScript("OnClick", function()
+        AutoQue:QueueUpAgain()
+        frame:Hide()
+    end)
+
+    self.requeueFrame = frame
+end
+
+-- Function to assist in queueing up again
+function AutoQue:QueueUpAgain()
+    if not AutoQueDB.lastQueuedActivity or not AutoQueDB.lastQueuedActivity.type then
+        print("|cffb048f8AutoQue:|r No previous activity to queue for.")
+        return
+    end
+
+    local activity = AutoQueDB.lastQueuedActivity
+
+    -- Open the PvP UI
+    TogglePVPUI()
+
+    if activity.type == "arena" then
+        if activity.isSkirmish then
+            -- Switch to Honor tab
+            HonorFrame.Tab1:Click()
+            -- Provide instructions to the player
+            print("|cffb048f8AutoQue:|r Please select your skirmish and click 'Join Battle'.")
+        elseif activity.teamSize then
+            -- Switch to Rated tab
+            HonorFrame.Tab2:Click()
+            -- Provide instructions to the player
+            print("|cffb048f8AutoQue:|r Please select your rated arena and click 'Join Battle'.")
+        else
+            -- Unknown arena type
+            print("|cffb048f8AutoQue:|r Please select your arena and click 'Join Battle'.")
+        end
+    elseif activity.type == "battleground" then
+        -- Switch to Honor tab
+        HonorFrame.Tab1:Click()
+        -- Provide instructions to the player
+        print("|cffb048f8AutoQue:|r Please select your battleground and click 'Join Battle'.")
+    else
+        print("|cffb048f8AutoQue:|r Unable to assist with queueing for the last activity.")
     end
 end
