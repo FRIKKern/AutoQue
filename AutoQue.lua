@@ -1,6 +1,7 @@
 -- AutoQue Addon
 -- Automatically accepts LFG role checks with inactivity auto-disable feature
 -- Now includes a requeue prompt after leaving an arena
+-- Added setting to toggle requeue reminder in the settings panel
 
 -- Initialize the addon namespace
 local addonName, addonTable = ...
@@ -22,6 +23,7 @@ local defaultSettings = {
     lastAcceptedTime = GetTime(),
     lastQueuedActivity = {},
     minimap = { hide = false }, -- Minimap button settings
+    showRequeueReminder = true, -- New setting to toggle requeue reminder
 }
 
 -- Create a frame for event handling
@@ -314,12 +316,23 @@ function AutoQue:CreateOptionsPanel()
         AutoQueDB.toggleOnAccept = self:GetChecked()
     end)
 
+    -- Checkbox for show requeue reminder feature
+    local requeueReminderCheckbox = CreateFrame("CheckButton", "AutoQueRequeueReminderCheckbox", panel, "InterfaceOptionsCheckButtonTemplate")
+    requeueReminderCheckbox:SetPoint("TOPLEFT", toggleCheckbox, "BOTTOMLEFT", 0, -10)
+    requeueReminderCheckbox.text = _G[requeueReminderCheckbox:GetName() .. "Text"]
+    requeueReminderCheckbox.text:SetText("Show requeue reminder after leaving an arena")
+    requeueReminderCheckbox:SetChecked(AutoQueDB.showRequeueReminder)
+    requeueReminderCheckbox:SetScript("OnClick", function(self)
+        AutoQueDB.showRequeueReminder = self:GetChecked()
+    end)
+
     -- Refresh function to update the panel
     panel.refresh = function()
         autoDisableCheckbox:SetChecked(AutoQueDB.autoDisable)
         durationSlider:SetValue(AutoQueDB.inactivityDuration)
         durationSliderValue:SetText(string.format("%d minutes", AutoQueDB.inactivityDuration / 60))
         toggleCheckbox:SetChecked(AutoQueDB.toggleOnAccept)
+        requeueReminderCheckbox:SetChecked(AutoQueDB.showRequeueReminder) -- Update the new checkbox
     end
 
     panel:SetScript("OnShow", panel.refresh)
@@ -392,6 +405,10 @@ end
 
 -- Function to show the requeue frame
 function AutoQue:ShowRequeueFrame()
+    if not AutoQueDB.showRequeueReminder then
+        return -- Do not show the requeue frame if the setting is disabled
+    end
+
     if GetNumGroupMembers() == 0 or UnitIsGroupLeader("player") then
         -- Show the frame
         self:CreateRequeueFrame()

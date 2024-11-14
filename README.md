@@ -1,7 +1,9 @@
-AutoQue 🔄️
-===========
+AutoQue - Automatic Role Accepter 🔄️
+=====================================
 
 **AutoQue** smooth outs the role check acceptances in World of Warcraft, with some guardrails to prevent unintended acceptances.
+
+![alt text](https://i.gyazo.com/d791855b877e661943d7fae776eb6464.png) ![alt text](https://i.gyazo.com/3fb6293dcda4cb228910b89bc9200382.png) ![alt text](https://i.gyazo.com/cce90f8b2cc09e0b2bcd9a2d0a69f535.png)
 
 Intended use cases:
 -------------------
@@ -14,14 +16,20 @@ If you have a slow PC, it will hinder role check from resetting after leaving lo
 
 You can go AFK while waiting for a group to fill up. Accept once and chill.
 
+
+### Reminder to queue up again after arena.
+
+If you are the party leader, the addon will show a reminder to queue up again after arena.
+
 ✨ Features
 ----------
 
 *   ✅ **Automatic Role Acceptance**: Instantly accepts role checks when they appear.
 *   ⏰ **Inactivity Auto-Disable**: Auto-disables auto-accept after a set inactivity period (1–30 minutes) to prevent unintended acceptances.
-*   🔄 **Configurable Re-toggle for Auto-Accept**: Option to re-toggle when you manually accept a role check.
+*   🟢 **Configurable Re-toggle for Auto-Accept**: Option to re-toggle when you manually accept a role check.
 *   ⚙️ **Customizable Timer**: Adjust inactivity duration via an easy-to-use slider.
 *   🖱️ **Minimap Toggle**: Left-click the minimap icon to enable or disable.
+*   🔄 **Queue up again reminder**: If you are the party leader, the addon will show a reminder to queue up again after arena.
 *   💾 **Persistent Settings**: Preferences are saved between sessions.
 *   🧩 **Lightweight Integration**: Minimal performance impact with seamless settings access.
 
