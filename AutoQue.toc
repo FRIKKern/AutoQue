@@ -1,8 +1,8 @@
-## Interface: 110007
+## Interface: 110200, 110205
 ## Title: AutoQue
 ## Notes: Automatically accepts role checks when toggled on.
 ## Author: Frikk Jarl
-## Version: v1.9
+## Version: v1.95
 ## SavedVariables: AutoQueDB
 ## IconTexture: Interface\AddOns\AutoQue\AutoQue-32.blp
 
