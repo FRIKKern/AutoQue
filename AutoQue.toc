@@ -2,7 +2,7 @@
 ## Title: AutoQue
 ## Notes: Automatically accepts role checks when toggled on.
 ## Author: Frikk Jarl
-## Version: v1.95
+## Version: v2.0
 ## SavedVariables: AutoQueDB
 ## IconTexture: Interface\AddOns\AutoQue\AutoQue-32.blp
 
